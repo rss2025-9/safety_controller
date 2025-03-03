@@ -5,12 +5,12 @@ from sensor_msgs.msg import LaserScan
 from ackermann_msgs.msg import AckermannDriveStamped
 
 
-class safety_controller(Node):
+class SafetyController(Node):
 
     def __init__(self):
         super().__init__("safety_controller")
 
-        self.stop_thresh=0.5  #meters before stopping
+        self.safety_threshold=0.5  #meters before stopping
         self.stop_speed=0.0  #stopping speed
 
         #declare ROS params
@@ -60,7 +60,7 @@ class safety_controller(Node):
 
 def main():
     rclpy.init()
-    safety_controller=safety_controller()
+    safety_controller=SafetyController()
     rclpy.spin(safety_controller)
     safety_controller.destroy_node()
     rclpy.shutdown()
@@ -68,5 +68,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
