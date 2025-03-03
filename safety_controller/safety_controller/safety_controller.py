@@ -6,7 +6,7 @@ from ackermann_msgs.msg import AckermannDriveStamped
 import numpy as np
 
 
-class safety_controller(Node):
+class SafetyController(Node):
 
     def __init__(self):
         super().__init__("safety_controller")
@@ -82,7 +82,7 @@ class safety_controller(Node):
 
 def main():
     rclpy.init()
-    safety_controller=safety_controller()
+    safety_controller=SafetyController()
     rclpy.spin(safety_controller)
     safety_controller.destroy_node()
     rclpy.shutdown()
