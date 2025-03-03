@@ -25,7 +25,7 @@ class SafetyController(Node):
 
         # ROS Parameters Declaration ===========================================
         # Safety controller parameters
-        self.declare_parameter('safety_threshold', 0.25) # meters
+        self.declare_parameter('safety_threshold', 1.0) # meters
         # for actual car 
         self.declare_parameter('safety_topic_car', '/vesc/low_level/input/safety')
         self.declare_parameter('scan_topic_car', '/scan')

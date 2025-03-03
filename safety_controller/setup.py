@@ -14,12 +14,13 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='racecar',
-    maintainer_email='mkzstar2013@gmail.com',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    maintainer_email='selinna@mit.edu',
+    description='Safety Controller for our racecar',
+    license='',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'safety_controller = safety_controller.safety_controller:main',
         ],
     },
 )
