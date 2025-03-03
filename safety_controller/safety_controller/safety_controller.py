@@ -15,7 +15,7 @@ class SafetyController(Node):
         self.stop_speed=0.0  #stopping speed
 
         #declare ROS params
-        self.declare_parameter("use_real_racecar", False)  #for real car vs. sim
+        self.declare_parameter("use_real_racecar", True)  #for real car vs. sim
         self.declare_parameter("drive_topic", "/drive")  #default for simulation
         self.declare_parameter("safety_topic", "/vesc/low_level/input/safety")  #for real car
 
