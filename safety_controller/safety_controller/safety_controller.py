@@ -23,17 +23,31 @@ class SafetyController(Node):
     def __init__(self):
         super().__init__("safety_controller")
 
-        # ROS Parameters Declaration 
-        self.declare_parameter('safety_topic', '/vesc/low_level/input/safety')
-        self.declare_parameter('scan_topic', '/scan')
-        self.declare_parameter('drive_topic', '/vesc/low_level/ackermann_cmd')
+        # ROS Parameters Declaration ===========================================
+        # Safety controller parameters
         self.declare_parameter('safety_threshold', 0.25) # meters
+        # for actual car 
+        self.declare_parameter('safety_topic_car', '/vesc/low_level/input/safety')
+        self.declare_parameter('scan_topic_car', '/scan')
+        self.declare_parameter('drive_topic_car', '/vesc/low_level/ackermann_cmd')
+        # for simulation 
+        self.declare_parameter('simulation', True)
+        self.declare_parameter('scan_topic_sim', '/scan')
+        self.declare_parameter('drive_topic_sim', '/drive')
 
-        # Get Parameters 
-        self.safety_topic = self.get_parameter('safety_topic').value
-        self.scan_topic = self.get_parameter('scan_topic').value
-        self.drive_topic = self.get_parameter('drive topic').value
+        # Get Parameters ========================================================
+        # safety controller parameters
         self.safety_threshold = self.get_parameter('safety_threshold').value
+        # get parameters according to sim or car 
+        self.simulation = self.get_parameter('simulation').value
+        if self.simulation: 
+            self.scan_topic = self.get_parameter('scan_topic_sim').value 
+            self.safety_topic = self.get_parameter('drive_topic_sim').value 
+            self.get_logger().info("Using simulation topics. ")
+        else: 
+            self.scan_topic = self.get_parameter('scan_topic_car').value 
+            self.safety_topic = self.get_parameter('safety_topic_car').value 
+            self.get_logger().info("Using car topics. ")
 
         # Subscribers 
         self.scan_subscriber = self.create_subscription(LaserScan, self.scan_topic, self.scan_callback, 10)
@@ -46,6 +60,10 @@ class SafetyController(Node):
         mid_end = angle_to_index(math.pi/15, scan)
         mid_ranges = np.array(scan.ranges[mid_start: mid_end])
         valid_mid_ranges = np.isfinite(mid_ranges) 
+
+        if len(valid_mid_ranges) == 0:
+            return
+
         min_distance = min(valid_mid_ranges) 
         if min_distance < self.safety_threshold: 
             self.publish_stop()
