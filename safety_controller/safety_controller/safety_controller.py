@@ -3,6 +3,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from ackermann_msgs.msg import AckermannDriveStamped
+import numpy as np
 
 
 class safety_controller(Node):
@@ -36,13 +37,34 @@ class safety_controller(Node):
 
     def scan_callback(self, msg):
         #LIDAR to detenct potential collisions
-        closest_pt=min(msg.ranges)  #closest potential obstacle
 
-        self.get_logger().info(f"Closest Obstacle Distance: {closest_pt:.3f}m") #for debugging
+        #LIDAR to np array
+        ranges=np.array(msg.ranges)
+        angles=np.linspace(msg.angle_min, msg.angle_max, len(ranges))
 
-        if closest_pt<self.safety_threshold: #if closer than set threshold
-            self.get_logger().warn("Stopping the car, publishing stop command func called") #for debugging
+        #only -pi/2 to pi/2
+        mask=(angles>=-np.pi/2)&(angles<=np.pi/2)
+        good_range=ranges[mask]
+
+        #bad data out
+        good_range=good_range[(good_range>msg.range_min)&(good_range<msg.range_max)]
+
+        #closest thing to hit
+        if len(good_range)>0:
+            closest_pt=np.min(good_range)
+        else:
+            closest_pt=float('inf')  #no obstacle
+
+        self.get_logger().info(f"Closest point: {closest_pt:.3f}m")  #to debug
+
+        #if closer than threshold, stop
+        if closest_pt<self.stop_thresh:
+            self.get_logger().warn("Publishing stop command")
             self.publish_stop_command()
+
+
+
+
 
     def ackermann_callback(self, msg):
         #intercepts driving commant
