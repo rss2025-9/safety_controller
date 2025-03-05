@@ -58,7 +58,7 @@ class SafetyController(Node):
         self.get_logger().info(f"Closest point: {closest_pt:.3f}m")  #to debug
 
         # if closer than threshold, stop
-        if closest_pt < max(self.stop_thresh, self.current_speed**2 / self.stop_speed):
+        if closest_pt < max(self.stop_thresh, self.current_speed**2 / 7):
             self.get_logger().warn("Publishing stop command")
             self.publish_stop_command()
 
