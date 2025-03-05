@@ -11,8 +11,8 @@ class SafetyController(Node):
     def __init__(self):
         super().__init__("safety_controller")
 
-        self.stop_thresh= 0.5  #meters before stopping
-        self.stop_speed = 0.0  # stopping speed
+        self.stop_thresh=0.5  #meters before stopping
+        self.stop_speed = 0  # stopping speed
         self.current_speed = 0.0
 
         # declare ROS params
@@ -58,7 +58,7 @@ class SafetyController(Node):
         self.get_logger().info(f"Closest point: {closest_pt:.3f}m")  #to debug
 
         # if closer than threshold, stop
-        if closest_pt < max(self.stop_thresh, self.current_speed**2 / 7):
+        if closest_pt < max(self.stop_thresh, self.current_speed**2 / self.stop_speed):
             self.get_logger().warn("Publishing stop command")
             self.publish_stop_command()
 
