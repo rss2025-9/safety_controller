@@ -15,7 +15,7 @@ class SafetyController(Node):
         self.stop_speed=0.0  #stopping speed
 
         #declare ROS params
-        self.declare_parameter("use_real_racecar", False)  #for real car vs. sim
+        self.declare_parameter("use_real_racecar", True)  #for real car vs. sim
         self.declare_parameter("drive_topic", "/drive")  #default for simulation
         self.declare_parameter("safety_topic", "/vesc/low_level/input/safety")  #for real car
 
@@ -42,8 +42,8 @@ class SafetyController(Node):
         ranges=np.array(msg.ranges)
         angles=np.linspace(msg.angle_min, msg.angle_max, len(ranges))
 
-        #only -pi/2 to pi/2
-        mask=(angles>=-np.pi/2)&(angles<=np.pi/2)
+        #only -pi/3 to pi/3
+        mask=(angles>=-np.pi/3)&(angles<=np.pi/3)
         good_range=ranges[mask]
 
         #bad data out
@@ -61,10 +61,6 @@ class SafetyController(Node):
         if closest_pt<self.stop_thresh:
             self.get_logger().warn("Publishing stop command")
             self.publish_stop_command()
-
-
-
-
 
     def ackermann_callback(self, msg):
         #intercepts driving commant
