@@ -11,9 +11,10 @@ class SafetyController(Node):
     def __init__(self):
         super().__init__("safety_controller")
 
-        self.stop_thresh = 0.5  # meters before stopping
+        self.stop_thresh = 0.25  # meters before stopping
         self.stop_speed = 0.0  # stopping speed
         self.max_decel = 2.5 # estimated maximum car deceleration in m/s 
+        self.min_speed = 1.0 # minimum speed for stopping - this is when we call publish stop command 
         self.braking_speed = 0.5 # braking speed - how much to slow down gradually 
         self.current_speed = 0.0 # current speed updated based on drive msgs 
 
