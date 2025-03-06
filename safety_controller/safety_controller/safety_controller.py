@@ -11,61 +11,75 @@ class SafetyController(Node):
     def __init__(self):
         super().__init__("safety_controller")
 
-        self.stop_thresh = 0.5  #meters before stopping
+        self.stop_thresh = 0.5  # meters before stopping
         self.stop_speed = 0.0  # stopping speed
-        self.current_speed = 0.0
+        self.max_decel = 2.5 # estimated maximum car deceleration in m/s 
+        self.braking_speed = 0.5 # braking speed - how much to slow down gradually 
+        self.current_speed = 0.0 # current speed updated based on drive msgs 
 
-        # declare ROS params
+        # Declare ROS params
         self.declare_parameter("use_real_racecar", True)  #for real car vs. sim
         self.declare_parameter("drive_topic", "/drive")  #default for simulation
         self.declare_parameter("safety_topic", "/vesc/low_level/input/safety")  #for real car
 
-        # get params
-        self.use_real_racecar=self.get_parameter("use_real_racecar").get_parameter_value().bool_value
-        self.DRIVE_TOPIC=self.get_parameter("drive_topic").get_parameter_value().string_value
-        self.SAFETY_TOPIC=self.get_parameter("safety_topic").get_parameter_value().string_value
+        # Get params
+        self.use_real_racecar = self.get_parameter("use_real_racecar").get_parameter_value().bool_value
+        self.DRIVE_TOPIC = self.get_parameter("drive_topic").get_parameter_value().string_value
+        self.SAFETY_TOPIC = self.get_parameter("safety_topic").get_parameter_value().string_value
 
-        # based on environ
-        self.output_topic=self.SAFETY_TOPIC if self.use_real_racecar else self.DRIVE_TOPIC
+        # Output topic based on real car or sims 
+        self.output_topic = self.SAFETY_TOPIC if self.use_real_racecar else self.DRIVE_TOPIC
 
-        # pub, as said in prompt
-        self.drive_pub=self.create_publisher(AckermannDriveStamped, self.output_topic, 10)
+        # Publishers
+        self.drive_pub = self.create_publisher(AckermannDriveStamped, self.output_topic, 10)
 
-        # sub, as said in prompt
-        self.scan_sub=self.create_subscription(LaserScan, "/scan", self.scan_callback, 10)
-        self.ackermann_sub=self.create_subscription(AckermannDriveStamped, "/vesc/low_level/ackermann_cmd", self.ackermann_callback, 10)
+        # Subscribers
+        self.scan_sub = self.create_subscription(LaserScan, "/scan", self.scan_callback, 10)
+        self.ackermann_sub = self.create_subscription(AckermannDriveStamped, "/vesc/low_level/ackermann_cmd", self.ackermann_callback, 10)
 
     def scan_callback(self, msg):
-        # LIDAR to detenct potential collisions
-
         # LIDAR to np array
-        ranges=np.array(msg.ranges)
+        ranges = np.array(msg.ranges)
         angles=np.linspace(msg.angle_min, msg.angle_max, len(ranges))
 
         # only -pi/3 to pi/3
-        mask=(angles>=-np.pi/3)&(angles<=np.pi/3)
+        mask = (angles >= -np.pi/3) & (angles <= np.pi/3)
         good_range=ranges[mask]
 
         # bad data out
-        good_range=good_range[(good_range>msg.range_min)&(good_range<msg.range_max)]
+        good_range = good_range[(good_range>msg.range_min) & (good_range<msg.range_max)]
 
         # closest thing to hit
-        if len(good_range)>0:
-            closest_pt=np.min(good_range)
+        if len(good_range) > 0:
+            closest_pt = np.min(good_range)
         else:
-            closest_pt=float('inf')  #no obstacle
+            closest_pt = float('inf')  #no obstacle
 
         self.get_logger().info(f"Closest point: {closest_pt:.3f}m")  #to debug
 
         # if closer than threshold, stop
-        if closest_pt < max(self.stop_thresh, self.current_speed**2 / 7):
-            self.get_logger().warn("Publishing stop command")
-            self.publish_stop_command()
+        stopping_distance = max(self.stop_thresh, self.current_speed**2 / (2 * self.max_decel))
+        if closest_pt < stopping_distance:
+            self.brake()
+            self.get_logger().warn("Braking")
+            # self.get_logger().warn("Publishing stop command")
+            # self.publish_stop_command()
 
     def ackermann_callback(self, msg):
-        # intercepts driving commant
+        # intercepts driving command
         self.get_logger().info(f"Received Drive Command: Speed={msg.drive.speed}, Steering={msg.drive.steering_angle}")
         self.current_speed = msg.drive.speed
+    
+    def brake(self): 
+        stop_msg = AckermannDriveStamped()
+        if self.current_speed > self.min_speed: 
+            new_speed = max(self.current_speed - self.braking_speed, self.min_speed)
+            stop_msg.drive.speed = float(new_speed)
+            stop_msg.drive.steering_angle = 0.0
+            self.drive_pub.publish(stop_msg)
+            self.get_logger().info(f"Braking: New speed = {new_speed} m/s")
+        else: 
+            self.publish_stop_command()
 
     def publish_stop_command(self):
         # pub stop command
@@ -73,9 +87,7 @@ class SafetyController(Node):
         stop_msg.drive.speed=self.stop_speed
         stop_msg.drive.steering_angle=0.0
         self.drive_pub.publish(stop_msg)
-
         self.get_logger().info("Stopping") #for debugging
-
 
 def main():
     rclpy.init()
