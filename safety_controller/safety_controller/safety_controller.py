@@ -11,11 +11,11 @@ class SafetyController(Node):
     def __init__(self):
         super().__init__("safety_controller")
 
-        self.stop_thresh = 0.4  # meters before stopping
+        self.stop_thresh = 0.30  # meters before stopping
         self.stop_speed = 0.0  # stopping speed
-        self.max_decel = 2.0 # estimated maximum car deceleration in m/s 
-        self.min_speed = 1.0 # minimum speed for stopping - this is when we call publish stop command 
-        self.braking_speed = 0.5 # braking speed - how much to slow down gradually 
+        # self.max_decel = 2.5 # estimated maximum car deceleration in m/s 
+        # self.min_speed = 1.0 # minimum speed for stopping - this is when we call publish stop command 
+        # self.braking_speed = 0.5 # braking speed - how much to slow down gradually 
         self.current_speed = 0.0 # current speed updated based on drive msgs 
 
         # Declare ROS params
@@ -36,7 +36,7 @@ class SafetyController(Node):
 
         # Subscribers
         self.scan_sub = self.create_subscription(LaserScan, "/scan", self.scan_callback, 10)
-        self.ackermann_sub = self.create_subscription(AckermannDriveStamped, "/vesc/low_level/ackermann_cmd", self.ackermann_callback, 10)
+        self.ackermann_sub = self.create_subscription(AckermannDriveStamped, "/vesc/high_level/input/nav_0", self.ackermann_callback, 10)
 
     def scan_callback(self, msg):
         # LIDAR to np array
@@ -59,12 +59,13 @@ class SafetyController(Node):
         self.get_logger().info(f"Closest point: {closest_pt:.3f}m")  #to debug
 
         # if closer than threshold, stop
-        stopping_distance = max(self.stop_thresh, self.current_speed**2 / (2 * self.max_decel))
-        if closest_pt < stopping_distance:
-            self.brake()
-            self.get_logger().warn("Braking")
-            # self.get_logger().warn("Publishing stop command")
-            # self.publish_stop_command()
+        # stopping_distance = max(self.stop_thresh, self.current_speed**2 / (2 * self.max_decel))
+        self.stop_thresh = 0.30 + self.current_speed * 0.5
+        if closest_pt < self.stop_thresh:
+            # self.brake()
+            # self.get_logger().warn("Braking")
+            self.get_logger().warn("Publishing stop command")
+            self.publish_stop_command()
 
     def ackermann_callback(self, msg):
         # intercepts driving command
