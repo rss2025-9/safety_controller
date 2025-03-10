@@ -45,7 +45,8 @@ class SafetyController(Node):
         angles=np.linspace(msg.angle_min, msg.angle_max, len(ranges))
 
         # only -pi/6 to pi/6
-        mask = (angles >= self.current_steer-np.pi/6) & (angles <= self.current_steer+np.pi/6)
+        # mask = (angles >= self.current_steer-np.pi/6) & (angles <= self.current_steer+np.pi/6)
+        mask = (angles >= -np.pi/6) & (angles <= np.pi/6)
         good_range=ranges[mask]
 
         # bad data out
