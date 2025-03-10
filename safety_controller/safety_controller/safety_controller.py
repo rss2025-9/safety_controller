@@ -11,12 +11,13 @@ class SafetyController(Node):
     def __init__(self):
         super().__init__("safety_controller")
 
-        self.stop_thresh = 0.35  # meters before stopping
+        self.stop_thresh = 0.4  # meters before stopping
         self.stop_speed = 0.0  # stopping speed
         # self.max_decel = 2.5 # estimated maximum car deceleration in m/s 
         # self.min_speed = 1.0 # minimum speed for stopping - this is when we call publish stop command 
         # self.braking_speed = 0.5 # braking speed - how much to slow down gradually 
         self.current_speed = 0.0 # current speed updated based on drive msgs 
+        self.current_steer = 0.0 # current angle based off drive msgs
 
         # Declare ROS params
         self.declare_parameter("use_real_racecar", True)  #for real car vs. sim
@@ -43,8 +44,8 @@ class SafetyController(Node):
         ranges = np.array(msg.ranges)
         angles=np.linspace(msg.angle_min, msg.angle_max, len(ranges))
 
-        # only -pi/3 to pi/3
-        mask = (angles >= -np.pi/6) & (angles <= np.pi/6)
+        # only -pi/6 to pi/6
+        mask = (angles >= self.current_steer-np.pi/6) & (angles <= self.current_steer+np.pi/6)
         good_range=ranges[mask]
 
         # bad data out
@@ -56,7 +57,7 @@ class SafetyController(Node):
         else:
             closest_pt = float('inf')  #no obstacle
 
-        self.get_logger().info(f"Closest point: {closest_pt:.3f}m")  #to debug
+        # self.get_logger().info(f"Closest point: {closest_pt:.3f}m")  #to debug
 
         # if closer than threshold, stop
         # stopping_distance = max(self.stop_thresh, self.current_speed**2 / (2 * self.max_decel))
@@ -64,12 +65,15 @@ class SafetyController(Node):
             # self.brake()
             # self.get_logger().warn("Braking")
             self.get_logger().warn("Publishing stop command")
+            self.get_logger().info(f"Closest point: {closest_pt:.3f}m")  #to debug
+
             self.publish_stop_command()
 
     def ackermann_callback(self, msg):
         # intercepts driving command
-        self.get_logger().info(f"Received Drive Command: Speed={msg.drive.speed}, Steering={msg.drive.steering_angle}")
+        # self.get_logger().info(f"Received Drive Command: Speed={msg.drive.speed}, Steering={msg.drive.steering_angle}")
         self.current_speed = msg.drive.speed
+        self.current_steer = msg.drive.steering_angle
     
     def brake(self): 
         stop_msg = AckermannDriveStamped()
