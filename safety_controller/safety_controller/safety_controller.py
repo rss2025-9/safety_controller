@@ -45,7 +45,7 @@ class SafetyController(Node):
         if not os.path.exists(self.safety_controller_data):
             with open(self.safety_controller_data, mode="w", newline="") as file:
                 writer = csv.writer(file)
-                writer.writerow(["Estimated Distance to Wall (m)", "Velocity (m/s)"])
+                writer.writerow(["Estimated Distance to Wall (m)", "Velocity (m/s)", "Stop Threshold (m)"])
 
         self.safety_controller_data_records = []
 
@@ -81,7 +81,7 @@ class SafetyController(Node):
             self.publish_stop_command()
 
             # Writing to safety controller data spreadsheet every time it stops 
-            self.wall_follower_data_records.append([round(closest_pt,2), self.VELOCITY])
+            self.wall_follower_data_records.append([round(closest_pt,2), self.VELOCITY, self.stop_thresh])
             self.write_to_csv()
     
     def write_to_csv(self): 
@@ -91,7 +91,6 @@ class SafetyController(Node):
         self.safety_controller_data_records = []
 
     def ackermann_callback(self, msg):
-        # intercepts driving command
         # self.get_logger().info(f"Received Drive Command: Speed={msg.drive.speed}, Steering={msg.drive.steering_angle}")
         self.current_speed = msg.drive.speed
         self.current_steer = msg.drive.steering_angle
