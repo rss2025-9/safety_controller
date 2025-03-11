@@ -4,7 +4,8 @@ from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from ackermann_msgs.msg import AckermannDriveStamped
 import numpy as np
-
+import os
+import csv
 
 class SafetyController(Node):
 
@@ -39,6 +40,15 @@ class SafetyController(Node):
         self.scan_sub = self.create_subscription(LaserScan, "/scan", self.scan_callback, 1)
         self.ackermann_sub = self.create_subscription(AckermannDriveStamped, "/vesc/high_level/input/nav_0", self.ackermann_callback, 10)
 
+        # File for wall follower data collection
+        self.safety_controller_data = "safety_controller_data.csv" 
+        if not os.path.exists(self.safety_controller_data):
+            with open(self.safety_controller_data, mode="w", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow(["Estimated Distance to Wall (m)", "Velocity (m/s)", "Stop Threshold (m)"])
+
+        self.safety_controller_data_records = []
+
     def scan_callback(self, msg):
         # LIDAR to np array
         ranges = np.array(msg.ranges)
@@ -70,8 +80,17 @@ class SafetyController(Node):
 
             self.publish_stop_command()
 
+            # Writing to safety controller data spreadsheet every time it stops 
+            self.wall_follower_data_records.append([round(closest_pt,2), self.VELOCITY, self.stop_thresh])
+            self.write_to_csv()
+    
+    def write_to_csv(self): 
+        with open(self.safety_controller_data, mode = 'a', newline = '') as file: 
+            writer = csv.writer(file)
+            writer.writerows(self.safety_controller_data_records)
+        self.safety_controller_data_records = []
+
     def ackermann_callback(self, msg):
-        # intercepts driving command
         # self.get_logger().info(f"Received Drive Command: Speed={msg.drive.speed}, Steering={msg.drive.steering_angle}")
         self.current_speed = msg.drive.speed
         self.current_steer = msg.drive.steering_angle
