@@ -12,9 +12,8 @@ class SafetyController(Node):
     def __init__(self):
         super().__init__("safety_controller")
 
-        self.stop_thresh = 0.4  # meters before stopping
+        self.stop_thresh = 0.5  # meters before stopping
         self.stop_speed = 0.0  # stopping speed
-        # self.max_decel = 2.5 # estimated maximum car deceleration in m/s 
         # self.min_speed = 1.0 # minimum speed for stopping - this is when we call publish stop command 
         # self.braking_speed = 0.5 # braking speed - how much to slow down gradually 
         self.current_speed = 0.0 # current speed updated based on drive msgs 
@@ -38,14 +37,14 @@ class SafetyController(Node):
 
         # Subscribers
         self.scan_sub = self.create_subscription(LaserScan, "/scan", self.scan_callback, 1)
-        self.ackermann_sub = self.create_subscription(AckermannDriveStamped, "/vesc/high_level/input/nav_0", self.ackermann_callback, 10)
+        self.ackermann_sub = self.create_subscription(AckermannDriveStamped, "/vesc/high_level/input/nav_0", self.ackermann_callback, 1)
 
         # File for wall follower data collection
         self.safety_controller_data = "safety_controller_data.csv" 
         if not os.path.exists(self.safety_controller_data):
             with open(self.safety_controller_data, mode="w", newline="") as file:
                 writer = csv.writer(file)
-                writer.writerow(["Estimated Distance to Wall (m)", "Velocity (m/s)", "Stop Threshold (m)"])
+                writer.writerow(["Estimated Distance to Obstacle (m)", "Velocity (m/s)", "Stop Threshold (m)"])
 
         self.safety_controller_data_records = []
 
@@ -56,7 +55,7 @@ class SafetyController(Node):
 
         # only -pi/6 to pi/6
         # mask = (angles >= self.current_steer-np.pi/6) & (angles <= self.current_steer+np.pi/6)
-        mask = (angles >= -np.pi/6) & (angles <= np.pi/6)
+        mask = (angles >= -np.pi/15) & (angles <= np.pi/15)
         good_range=ranges[mask]
 
         # bad data out
@@ -72,16 +71,17 @@ class SafetyController(Node):
 
         # if closer than threshold, stop
         # stopping_distance = max(self.stop_thresh, self.current_speed**2 / (2 * self.max_decel))
+        self.stop_thresh = 3.65 - 5.9*self.current_speed + 2.8*self.current_speed**2
         if closest_pt < self.stop_thresh:
             # self.brake()
             # self.get_logger().warn("Braking")
             self.get_logger().warn("Publishing stop command")
-            self.get_logger().info(f"Closest point: {closest_pt:.3f}m")  #to debug
+            self.get_logger().info(f"closest point: {closest_pt:.3f}m")  #to debug
 
             self.publish_stop_command()
 
             # Writing to safety controller data spreadsheet every time it stops 
-            self.wall_follower_data_records.append([round(closest_pt,2), self.VELOCITY, self.stop_thresh])
+            self.safety_controller_data_records.append([round(closest_pt,2), self.current_speed, self.stop_thresh])
             self.write_to_csv()
     
     def write_to_csv(self): 
@@ -95,16 +95,16 @@ class SafetyController(Node):
         self.current_speed = msg.drive.speed
         self.current_steer = msg.drive.steering_angle
     
-    def brake(self): 
-        stop_msg = AckermannDriveStamped()
-        if self.current_speed > self.min_speed: 
-            new_speed = max(self.current_speed - self.braking_speed, self.min_speed)
-            stop_msg.drive.speed = float(new_speed)
-            stop_msg.drive.steering_angle = 0.0
-            self.drive_pub.publish(stop_msg)
-            self.get_logger().info(f"Braking: New speed = {new_speed} m/s")
-        else: 
-            self.publish_stop_command()
+    # def brake(self): 
+    #     stop_msg = AckermannDriveStamped()
+    #     if self.current_speed > self.min_speed: 
+    #         new_speed = max(self.current_speed - self.braking_speed, self.min_speed)
+    #         stop_msg.drive.speed = float(new_speed)
+    #         stop_msg.drive.steering_angle = 0.0
+    #         self.drive_pub.publish(stop_msg)
+    #         self.get_logger().info(f"Braking: New speed = {new_speed} m/s")
+    #     else: 
+    #         self.publish_stop_command()
 
     def publish_stop_command(self):
         # pub stop command
